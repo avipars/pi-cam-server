@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# code is taken from the picamera2 examples and modified with some improvements 
+# code is taken from the picamera2 examples and modified with some improvements
 
 import io
 import logging
@@ -13,22 +13,23 @@ from picamera2.outputs import FileOutput
 from datetime import datetime
 import time
 import piexif
+import os
 # Page template with responsive styling
 PAGE = """\
 <html>
 <head>
-<title>MJPEG Feed</title>
+<title>Pi Camera Feed</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     body {{ font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; }}
-    img {{ width: 100%; height: auto; max-width: 640px; }}
+    img {{ width: 100%; height: auto; max-width: 1000px; }}
     #controls {{ margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; }}
     #controls button {{ 
         margin: 5px;
         padding: 10px 20px;
         font-size: 1rem;
         flex: 1 1 30%;
-        max-width: 120px;
+        max-width: 100px;
         border: none;
         border-radius: 5px;
         background-color: #007BFF;
@@ -47,9 +48,10 @@ PAGE = """\
 </script>
 </head>
 <body>
-<h1>MJPEG Feed</h1>
-<img src="stream.mjpg" width="{WIDTH}" height="{HEIGHT}" lt="Camera Feed"/>
+<h1>Pi Camera Feed</h1>
+<img src="stream.mjpg" width="{WIDTH}" height="{HEIGHT}" alt="Camera Feed"/>
 <div id="controls">
+    <p>(Beta) Bonus Buttons</p>
     <button onclick="fetch('/rotate')">Rotate Camera</button>
     <button onclick="sendCommand('zoom_in')">Zoom In</button>
     <button onclick="sendCommand('zoom_out')">Zoom Out</button>
@@ -57,9 +59,8 @@ PAGE = """\
     <button onclick="sendCommand('resolution_low')">Low Resolution</button>
 </div>
 <div id="info">
-    <p>Date: {date} | Time: {time} | Temp: {temp}°C | CPU Usage: {cpu}%</p>
-    <br/>
-    <p>Metadata: {metadata} </p>
+    <p>Date: {date} | CPU Usage: {cpu}%</p>
+
 </div>
 </body>
 </html>
@@ -84,7 +85,6 @@ def update_rotation_header(rotation):
     exif_len = len(exif_bytes) + 2
     rotation_header = bytes.fromhex('ffe1') + exif_len.to_bytes(2, 'big') + exif_bytes
 
-
 # Functions to get CPU usage and temperature
 def get_cpu_usage():
     with open('/proc/stat', 'r') as f:
@@ -101,14 +101,13 @@ def get_cpu_temp():
     return round(temp, 2)
 
 def get_metadata():
-    metadata = picam2.capture_metadata()
-    # print(metadata)
-    # controls = {c: metadata[c] for c in ["ExposureTime", "AnalogueGain", "ColourGains"]}
-    return metadata
+    return picam2.capture_metadata()
 
 def change_rotation():
     """Cycle rotation between 0, 90, and 270, and restart camera with new settings."""
     global ROTATION
+    global WIDTH
+    global HEIGHT
     picam2.stop_recording()  # Stop camera first
 
     # Cycle through 0 -> 90 -> 270 -> 0 degrees
@@ -204,12 +203,12 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
         global HEIGHT
         # Get system stats
         date = datetime.now().strftime('%Y-%m-%d')
-        time = datetime.now().strftime('%H:%M:%S')
-        temp = get_cpu_temp()
+        # time = datetime.now().strftime('%H:%M')
+        # temp = get_cpu_temp()
         cpu = get_cpu_usage()
-        metadata = get_metadata()
+        # metadata = get_metadata()
         # Update the HTML content with the stats
-        self.page_content_cache = PAGE.format(WIDTH=WIDTH, HEIGHT=HEIGHT,date=date, time=time, temp=temp, cpu=cpu,metadata=metadata)
+        self.page_content_cache = PAGE.format(WIDTH=WIDTH, HEIGHT=HEIGHT,date=date, cpu=cpu)
 
     def start_background_page_updater(self):
         def update_task():
@@ -241,9 +240,13 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
                 size = [int(min(s * 1.05, r)) for s, r in zip(size, full_res)]
                 offset = [(r - s) // 2 for r, s in zip(full_res, size)]
                 picam2.set_controls({"ScalerCrop": offset + size})
-        if command == "resolution_high":
+        elif command == "resolution_high":
+            WIDTH = 1280
+            HEIGHT = 720
             self.change_resolution((WIDTH, HEIGHT))
         elif command == "resolution_low":
+            WWIDTH = 640
+            HEIGHT = 480
             self.change_resolution((WIDTH, HEIGHT))
         else: 
             logging.error(f"Commnad doesn't exist: {command}")
