@@ -2,9 +2,9 @@
 Experimental web server for a pi camera
 
 
-call python cam-server.py (on the pi)
+call ```python cam-server.py``` (on the pi)
 
-and on another computer, navigate to http://<ip of pi>:8000/index.html 
+and on another computer, navigate to ```http://<ip of pi>:8000/index.html``` 
 
 and give it some time to load
 
