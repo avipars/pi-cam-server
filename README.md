@@ -13,6 +13,9 @@ and give it some time to load
 
 [![Demo video](https://img.youtube.com/vi/hkoxSHssY_g/0.jpg)](https://www.youtube.com/watch?v=hkoxSHssY_g)
 
+
+If you found this project useful, consider starring the repo, leaving a sub on youtube, and maybe even buying me a coffee.
+
 ### Credit goes to: 
 
 https://github.com/raspberrypi/picamera2/blob/main/examples/mjpeg_server_with_rotation.py
