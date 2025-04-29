@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# code is taken from the picamera2 examples and modified with some improvements
+# Code is forked from picamera2 examples and heavily modified with improvements
 
 import io
 import logging
@@ -59,8 +59,7 @@ PAGE = """\
     <button onclick="sendCommand('resolution_low')">Low Resolution</button>
 </div>
 <div id="info">
-    <p>Date: {date} | CPU Usage: {cpu}%</p>
-
+    <p>Date: {date} | CPU Usage: {cpu}% | Temperature: {temp} </p>
 </div>
 </body>
 </html>
@@ -70,6 +69,8 @@ PAGE = """\
 ROTATION = 270  # Start with 270 degrees
 WIDTH = 640
 HEIGHT = 480
+
+PORT = 8000 # web port
 
 def update_rotation_header(rotation):
     """Update EXIF rotation header based on the rotation angle."""
@@ -204,11 +205,11 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
         # Get system stats
         date = datetime.now().strftime('%Y-%m-%d')
         # time = datetime.now().strftime('%H:%M')
-        # temp = get_cpu_temp()
+        temp = get_cpu_temp()
         cpu = get_cpu_usage()
         # metadata = get_metadata()
         # Update the HTML content with the stats
-        self.page_content_cache = PAGE.format(WIDTH=WIDTH, HEIGHT=HEIGHT,date=date, cpu=cpu)
+        self.page_content_cache = PAGE.format(WIDTH=WIDTH, HEIGHT=HEIGHT,date=date, cpu=cpu, temp=temp)
 
     def start_background_page_updater(self):
         def update_task():
@@ -258,18 +259,19 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
         picam2.configure(picam2.create_video_configuration(main={"size": size}))
         picam2.start_recording(MJPEGEncoder(), FileOutput(output))
 
+if __name__ == "__main__":
+    # Initialize camera and server
+    picam2 = Picamera2()
+    update_rotation_header(ROTATION)  # Set initial rotation header
 
-# Initialize camera and server
-picam2 = Picamera2()
-update_rotation_header(ROTATION)  # Set initial rotation header
+    picam2.configure(picam2.create_video_configuration(main={"size": (WIDTH, HEIGHT)}))
+    output = StreamingOutput()
+    picam2.start_recording(MJPEGEncoder(), FileOutput(output))
 
-picam2.configure(picam2.create_video_configuration(main={"size": (WIDTH, HEIGHT)}))
-output = StreamingOutput()
-picam2.start_recording(MJPEGEncoder(), FileOutput(output))
-
-try:
-    address = ('', 8000)
-    server = StreamingServer(address, StreamingHandler)
-    server.serve_forever()
-finally:
-    picam2.stop_recording()
+    try:
+        address = ('', PORT)
+        server = StreamingServer(address, StreamingHandler)
+        logger.info(f"Serving at http://0.0.0.0:{PORT}")
+        server.serve_forever()
+    finally:
+        picam2.stop_recording()
